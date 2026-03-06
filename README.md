@@ -1,10 +1,10 @@
-# raidreplay-server
+# HaugenRaidTools-Server
 
-Self-hosted WoW raid recording and replay server. Part of the [RaidReplay](https://github.com/raidreplay) project.
+Self-hosted WoW raid recording and replay server. Part of the [Haugen Raid Tools](https://github.com/shaug3n/HaugenRaidTools-Server) project.
 
 ## What this is
 
-The server half of RaidReplay: a Fastify API, a PostgreSQL database, and (later) a Next.js web dashboard — all shipped as a single Docker Compose stack. The Electron companion app (`raidreplay-client`) records boss pulls locally and uploads them here.
+The server half of Haugen Raid Tools: a Fastify API, a PostgreSQL database, and (later) a Next.js web dashboard — all shipped as a single Docker Compose stack. The Electron companion app (`Haugen Raid Tools-client`) records boss pulls locally and uploads them here.
 
 ## Development
 
@@ -44,7 +44,7 @@ npm run generate:spec
 # Writes to api/spec/openapi.yaml
 ```
 
-Commit the generated spec. The `raidreplay-client` repo fetches it to generate typed API client code.
+Commit the generated spec. The `Haugen Raid Tools-client` repo fetches it to generate typed API client code.
 
 ### Database
 
