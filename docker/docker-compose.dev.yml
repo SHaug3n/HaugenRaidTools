@@ -1,0 +1,20 @@
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: raidreplay
+      POSTGRES_PASSWORD: devpassword
+      POSTGRES_DB: raidreplay
+    volumes:
+      - db-dev-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U raidreplay -d raidreplay"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  db-dev-data:

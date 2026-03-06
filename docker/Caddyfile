@@ -1,0 +1,22 @@
+# Replace yourguild.com with your actual domain.
+# Caddy automatically provisions TLS certificates via Let's Encrypt.
+
+yourguild.com {
+  # Web dashboard (Phase 4 — static files served by the web container)
+  # handle / {
+  #   reverse_proxy web:3001
+  # }
+
+  # API
+  handle /api/* {
+    reverse_proxy api:3000
+  }
+
+  # Swagger UI
+  handle /docs/* {
+    reverse_proxy api:3000
+  }
+
+  # Default: proxy everything to API for now
+  reverse_proxy api:3000
+}
