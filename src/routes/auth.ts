@@ -1,4 +1,4 @@
-import { FastifyInstance } from 'fastify';
+import { FastifyPluginAsyncTypebox } from '@fastify/type-provider-typebox';
 import { Type } from '@sinclair/typebox';
 import { RegisterBody, LoginBody, AuthResponse, UserResponse } from '../schemas/auth.js';
 import { ErrorResponse } from '../schemas/common.js';
@@ -13,7 +13,7 @@ import {
   consumeInviteToken,
 } from '../services/auth.js';
 
-export async function authRoutes(app: FastifyInstance) {
+export const authRoutes: FastifyPluginAsyncTypebox = async (app) => {
   // POST /api/auth/register
   app.post('/register', {
     schema: {

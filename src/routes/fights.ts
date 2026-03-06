@@ -1,4 +1,4 @@
-import { FastifyInstance } from 'fastify';
+import { FastifyPluginAsyncTypebox } from '@fastify/type-provider-typebox';
 import { Type } from '@sinclair/typebox';
 import { eq, count } from 'drizzle-orm';
 import { db } from '../db/client.js';
@@ -6,7 +6,7 @@ import { fights, recordings } from '../db/schema.js';
 import { CreateFightBody, FightResponse, FightListResponse } from '../schemas/fights.js';
 import { UuidParam, ErrorResponse } from '../schemas/common.js';
 
-export async function fightRoutes(app: FastifyInstance) {
+export const fightRoutes: FastifyPluginAsyncTypebox = async (app) => {
   // POST /api/v1/fights
   app.post('/fights', {
     onRequest: [app.authenticate],
@@ -144,6 +144,6 @@ export async function fightRoutes(app: FastifyInstance) {
       return reply.status(404).send({ error: 'Fight not found' });
     }
 
-    return reply.status(204).send();
+    return reply.status(204).send(null);
   });
 }

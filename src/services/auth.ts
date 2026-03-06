@@ -1,4 +1,4 @@
-import * as bcrypt from 'bcryptjs';
+import bcrypt from 'bcryptjs';
 import { db } from '../db/client.js';
 import { users, inviteTokens } from '../db/schema.js';
 import { eq, gt, and, isNull } from 'drizzle-orm';

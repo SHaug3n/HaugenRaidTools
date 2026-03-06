@@ -1,4 +1,4 @@
-import { FastifyInstance } from 'fastify';
+import { FastifyPluginAsyncTypebox } from '@fastify/type-provider-typebox';
 import { Type } from '@sinclair/typebox';
 import { eq, desc, count, sql } from 'drizzle-orm';
 import { db } from '../db/client.js';
@@ -11,7 +11,7 @@ import {
 } from '../schemas/sessions.js';
 import { UuidParam, PaginationQuery, ErrorResponse } from '../schemas/common.js';
 
-export async function sessionRoutes(app: FastifyInstance) {
+export const sessionRoutes: FastifyPluginAsyncTypebox = async (app) => {
   // GET /api/v1/sessions
   app.get('/sessions', {
     onRequest: [app.authenticate],
@@ -206,6 +206,6 @@ export async function sessionRoutes(app: FastifyInstance) {
       return reply.status(404).send({ error: 'Session not found' });
     }
 
-    return reply.status(204).send();
+    return reply.status(204).send(null);
   });
 }
