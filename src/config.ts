@@ -22,6 +22,12 @@ export const config = {
   storageBackend: optional('STORAGE_BACKEND', 'local') as 'local' | 's3',
   storageLocalPath: optional('STORAGE_LOCAL_PATH', './data/videos'),
 
+  s3AccessKey: process.env.S3_ACCESS_KEY,
+  s3SecretKey: process.env.S3_SECRET_KEY,
+  s3Bucket: process.env.S3_BUCKET ?? 'raidreplay',
+  s3Endpoint: process.env.S3_ENDPOINT,
+  s3Region: process.env.S3_REGION ?? 'us-east-1',
+
   corsOrigin: optional('CORS_ORIGIN', 'http://localhost:3001'),
 
   wclClientId: process.env.WCL_CLIENT_ID,

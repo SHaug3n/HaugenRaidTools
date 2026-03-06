@@ -1,0 +1,1 @@
+ALTER TABLE "fights" ALTER COLUMN "boss_pct" SET DATA TYPE real;

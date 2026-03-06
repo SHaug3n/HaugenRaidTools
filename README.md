@@ -4,7 +4,7 @@ Self-hosted WoW raid recording and replay server. Part of the [Haugen Raid Tools
 
 ## What this is
 
-The server half of Haugen Raid Tools: a Fastify API, a PostgreSQL database, and (later) a Next.js web dashboard — all shipped as a single Docker Compose stack. The Electron companion app (`Haugen Raid Tools-client`) records boss pulls locally and uploads them here.
+The server half of Haugen Raid Tools: a Fastify API, a PostgreSQL database, and (later) a Next.js web dashboard — all shipped as a single Docker Compose stack. The Electron companion app (`HaugenRaidTools-client`) records boss pulls locally and uploads them here.
 
 ## Development
 

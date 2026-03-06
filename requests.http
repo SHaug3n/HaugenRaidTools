@@ -1,0 +1,160 @@
+# RaidReplay API — manual test requests
+# Requires the VS Code "REST Client" extension (humao.rest-client)
+#
+# Workflow:
+#   1. docker compose -f docker/docker-compose.dev.yml up -d
+#   2. cp .env.example .env  (set JWT_SECRET and DATABASE_URL)
+#   3. npm run db:migrate && npm run dev
+#   4. Send "Register first user" below, then "Login", copy the token into @token
+
+@baseUrl = http://localhost:3000
+# After login, paste the token value here:
+@token = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI1OGEzN2NjMy1hMjAxLTRiZTctYWY5OS1iMzEzOWU5ZWU5NWMiLCJ1c2VybmFtZSI6ImFkbWluIiwicm9sZSI6ImFkbWluIiwiaWF0IjoxNzcyODI0ODY0fQ.dHrRRpJ2rYmwNQNk7X8nXsUqECehKv-ihUSo40OLLVg
+
+# Swagger UI (open in browser): http://localhost:3000/docs
+
+###############################################################################
+# SYSTEM
+###############################################################################
+
+### Health check (no auth)
+GET {{baseUrl}}/api/health
+
+### Live OpenAPI spec
+GET {{baseUrl}}/api/openapi.yaml
+
+###############################################################################
+# AUTH
+###############################################################################
+
+### Register first user (becomes admin — no invite token needed)
+POST {{baseUrl}}/api/auth/register
+Content-Type: application/json
+
+{
+  "username": "admin",
+  "password": "password123",
+  "displayName": "Admin"
+}
+
+### Login
+# Copy the "token" value from the response and paste it into @token above
+POST {{baseUrl}}/api/auth/login
+Content-Type: application/json
+
+{
+  "username": "admin",
+  "password": "password123"
+}
+
+### Get current user
+GET {{baseUrl}}/api/auth/me
+Authorization: Bearer {{token}}
+
+###############################################################################
+# SESSIONS
+###############################################################################
+
+### Create session
+# @name createSession
+POST {{baseUrl}}/api/v1/sessions
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "instanceName": "Nerub-ar Palace",
+  "date": "2025-09-01"
+}
+
+### List sessions (supports ?limit=20&offset=0)
+GET {{baseUrl}}/api/v1/sessions
+Authorization: Bearer {{token}}
+
+### Get session by ID
+GET {{baseUrl}}/api/v1/sessions/58f13d9e-6542-4429-8a9e-ed22c4fda29a
+Authorization: Bearer {{token}}
+
+### Update session
+PATCH {{baseUrl}}/api/v1/sessions/58f13d9e-6542-4429-8a9e-ed22c4fda29a
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "wclReportCode": "AbCdEfGh"
+}
+
+### Delete session
+DELETE {{baseUrl}}/api/v1/sessions/58f13d9e-6542-4429-8a9e-ed22c4fda29a
+Authorization: Bearer {{token}}
+
+###############################################################################
+# FIGHTS
+###############################################################################
+
+### Create fight
+# @name createFight
+POST {{baseUrl}}/api/v1/fights
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "sessionId": "58f13d9e-6542-4429-8a9e-ed22c4fda29a",
+  "encounterId": 2901,
+  "encounterName": "Ulgrax the Devourer",
+  "difficultyId": 16,
+  "pullNumber": 1,
+  "kill": false,
+  "bossPct": 42.7,
+  "durationMs": 120000,
+  "fightStartUnixMs": 1725148800000,
+  "fightEndUnixMs": 1725148920000
+}
+
+### Get fight by ID
+GET {{baseUrl}}/api/v1/fights/REPLACE_FIGHT_ID
+Authorization: Bearer {{token}}
+
+### Delete fight
+DELETE {{baseUrl}}/api/v1/fights/REPLACE_FIGHT_ID
+Authorization: Bearer {{token}}
+
+###############################################################################
+# RECORDINGS
+###############################################################################
+
+### Request upload URL
+# @name uploadUrl
+POST {{baseUrl}}/api/v1/recordings/upload-url
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "fightId": "REPLACE_FIGHT_ID",
+  "encounterID": 2902,
+  "encounterName": "Ulgrax the Devourer",
+  "difficultyID": 16,
+  "groupSize": 20,
+  "kill": false,
+  "bossPct": 42.5,
+  "durationMs": 120000,
+  "videoStartUnixMs": 1725148800000,
+  "pullNumber": 1
+}
+
+### Get recording metadata
+GET {{baseUrl}}/api/v1/recordings/REPLACE_RECORDING_ID
+Authorization: Bearer {{token}}
+
+### Update recording status
+PATCH {{baseUrl}}/api/v1/recordings/REPLACE_RECORDING_ID/status
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "status": "ready",
+  "fileSizeBytes": 524288000
+}
+
+### Delete recording
+DELETE {{baseUrl}}/api/v1/recordings/REPLACE_RECORDING_ID
+Authorization: Bearer {{token}}

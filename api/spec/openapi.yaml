@@ -1,0 +1,1272 @@
+openapi: 3.0.3
+info:
+  title: RaidReplay API
+  description: Self-hosted WoW raid recording and replay server. Spec is also
+    served live at GET /api/openapi.yaml.
+  version: 0.1.0
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  schemas: {}
+paths:
+  /api/health:
+    get:
+      summary: Health check and feature discovery
+      tags:
+        - system
+      description: Returns server version, minimum compatible client version, and
+        feature flags. No authentication required. The Electron client calls
+        this on startup.
+      responses:
+        "200":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - status
+                  - version
+                  - apiVersion
+                  - minClientVersion
+                  - features
+                  - specUrl
+                properties:
+                  status:
+                    type: string
+                    enum:
+                      - ok
+                  version:
+                    type: string
+                  apiVersion:
+                    type: string
+                  minClientVersion:
+                    type: string
+                  features:
+                    type: object
+                    required:
+                      - wcl
+                      - serverTranscoding
+                      - s3Storage
+                    properties:
+                      wcl:
+                        type: boolean
+                      serverTranscoding:
+                        type: boolean
+                      s3Storage:
+                        type: boolean
+                  specUrl:
+                    type: string
+  /api/auth/register:
+    post:
+      summary: Register a new user
+      tags:
+        - auth
+      description: The first registered user is automatically granted the admin role.
+        Subsequent registrations require a valid invite token.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - username
+                - password
+              properties:
+                username:
+                  minLength: 3
+                  maxLength: 64
+                  pattern: ^[a-zA-Z0-9_-]+$
+                  type: string
+                password:
+                  minLength: 8
+                  maxLength: 128
+                  type: string
+                displayName:
+                  minLength: 1
+                  maxLength: 128
+                  type: string
+                inviteToken:
+                  type: string
+      responses:
+        "201":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - token
+                  - user
+                properties:
+                  token:
+                    type: string
+                  user:
+                    type: object
+                    required:
+                      - id
+                      - username
+                      - displayName
+                      - role
+                    properties:
+                      id:
+                        format: uuid
+                        type: string
+                      username:
+                        type: string
+                      displayName:
+                        type: string
+                      role:
+                        type: string
+        "400":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - error
+                properties:
+                  error:
+                    type: string
+        "409":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - error
+                properties:
+                  error:
+                    type: string
+  /api/auth/login:
+    post:
+      summary: Login with username and password
+      tags:
+        - auth
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - username
+                - password
+              properties:
+                username:
+                  type: string
+                password:
+                  type: string
+      responses:
+        "200":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - token
+                  - user
+                properties:
+                  token:
+                    type: string
+                  user:
+                    type: object
+                    required:
+                      - id
+                      - username
+                      - displayName
+                      - role
+                    properties:
+                      id:
+                        format: uuid
+                        type: string
+                      username:
+                        type: string
+                      displayName:
+                        type: string
+                      role:
+                        type: string
+        "401":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - error
+                properties:
+                  error:
+                    type: string
+  /api/auth/me:
+    get:
+      summary: Get current user
+      tags:
+        - auth
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - id
+                  - username
+                  - displayName
+                  - role
+                properties:
+                  id:
+                    format: uuid
+                    type: string
+                  username:
+                    type: string
+                  displayName:
+                    type: string
+                  role:
+                    type: string
+        "401":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - error
+                properties:
+                  error:
+                    type: string
+  /api/v1/recordings/upload-url:
+    post:
+      summary: Request an upload URL for a new recording
+      tags:
+        - recordings
+      description: The client calls this before uploading a video. Returns a
+        recordingId and a URL to PUT the video file to. For S3 storage the URL
+        points directly to S3 (presigned). For local storage the URL points to
+        this API.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - fightId
+                - encounterID
+                - encounterName
+                - difficultyID
+                - groupSize
+                - kill
+                - durationMs
+                - videoStartUnixMs
+                - pullNumber
+              properties:
+                fightId:
+                  format: uuid
+                  type: string
+                encounterID:
+                  type: number
+                encounterName:
+                  type: string
+                difficultyID:
+                  type: number
+                groupSize:
+                  minimum: 1
+                  maximum: 40
+                  type: number
+                kill:
+                  type: boolean
+                bossPct:
+                  minimum: 0
+                  maximum: 100
+                  type: number
+                durationMs:
+                  minimum: 0
+                  type: number
+                videoStartUnixMs:
+                  type: number
+                pullNumber:
+                  minimum: 1
+                  type: number
+      security:
+        - bearerAuth: []
+      responses:
+        "201":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - recordingId
+                  - uploadUrl
+                  - expiresAt
+                properties:
+                  recordingId:
+                    format: uuid
+                    type: string
+                  uploadUrl:
+                    format: uri
+                    type: string
+                  expiresAt:
+                    format: date-time
+                    type: string
+        "400":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - error
+                properties:
+                  error:
+                    type: string
+  /api/v1/recordings/{id}/upload:
+    put:
+      summary: Upload video file
+      tags:
+        - recordings
+      description: PUT the raw video bytes here. Only used when storage backend is
+        local disk. For S3, the client uploads directly to the presigned URL.
+      parameters:
+        - schema:
+            format: uuid
+            type: string
+          in: path
+          name: id
+          required: true
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - id
+                  - fightId
+                  - userId
+                  - status
+                  - durationMs
+                  - videoStartUnixMs
+                  - fileSizeBytes
+                  - format
+                  - createdAt
+                properties:
+                  id:
+                    format: uuid
+                    type: string
+                  fightId:
+                    format: uuid
+                    type: string
+                  userId:
+                    anyOf:
+                      - format: uuid
+                        type: string
+                      - type: "null"
+                  status:
+                    anyOf:
+                      - type: string
+                        enum:
+                          - uploading
+                      - type: string
+                        enum:
+                          - processing
+                      - type: string
+                        enum:
+                          - ready
+                      - type: string
+                        enum:
+                          - error
+                  durationMs:
+                    type: number
+                  videoStartUnixMs:
+                    type: number
+                  fileSizeBytes:
+                    anyOf:
+                      - type: number
+                      - type: "null"
+                  format:
+                    type: string
+                  createdAt:
+                    format: date-time
+                    type: string
+        "404":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - error
+                properties:
+                  error:
+                    type: string
+        "409":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - error
+                properties:
+                  error:
+                    type: string
+  /api/v1/recordings/{id}/stream:
+    get:
+      summary: Stream video file
+      tags:
+        - recordings
+      description: For local storage, streams the file directly. For S3 storage,
+        redirects to a presigned download URL.
+      parameters:
+        - schema:
+            format: uuid
+            type: string
+          in: path
+          name: id
+          required: true
+      security:
+        - bearerAuth: []
+      responses:
+        "404":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - error
+                properties:
+                  error:
+                    type: string
+  /api/v1/recordings/{id}:
+    get:
+      summary: Get recording metadata
+      tags:
+        - recordings
+      parameters:
+        - schema:
+            format: uuid
+            type: string
+          in: path
+          name: id
+          required: true
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - id
+                  - fightId
+                  - userId
+                  - status
+                  - durationMs
+                  - videoStartUnixMs
+                  - fileSizeBytes
+                  - format
+                  - createdAt
+                properties:
+                  id:
+                    format: uuid
+                    type: string
+                  fightId:
+                    format: uuid
+                    type: string
+                  userId:
+                    anyOf:
+                      - format: uuid
+                        type: string
+                      - type: "null"
+                  status:
+                    anyOf:
+                      - type: string
+                        enum:
+                          - uploading
+                      - type: string
+                        enum:
+                          - processing
+                      - type: string
+                        enum:
+                          - ready
+                      - type: string
+                        enum:
+                          - error
+                  durationMs:
+                    type: number
+                  videoStartUnixMs:
+                    type: number
+                  fileSizeBytes:
+                    anyOf:
+                      - type: number
+                      - type: "null"
+                  format:
+                    type: string
+                  createdAt:
+                    format: date-time
+                    type: string
+        "404":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - error
+                properties:
+                  error:
+                    type: string
+    delete:
+      summary: Delete a recording
+      tags:
+        - recordings
+      parameters:
+        - schema:
+            format: uuid
+            type: string
+          in: path
+          name: id
+          required: true
+      security:
+        - bearerAuth: []
+      responses:
+        "204":
+          description: Default Response
+        "404":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - error
+                properties:
+                  error:
+                    type: string
+  /api/v1/recordings/{id}/status:
+    patch:
+      summary: Update recording status
+      tags:
+        - recordings
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - status
+              properties:
+                status:
+                  anyOf:
+                    - type: string
+                      enum:
+                        - uploading
+                    - type: string
+                      enum:
+                        - processing
+                    - type: string
+                      enum:
+                        - ready
+                    - type: string
+                      enum:
+                        - error
+                fileSizeBytes:
+                  type: number
+      parameters:
+        - schema:
+            format: uuid
+            type: string
+          in: path
+          name: id
+          required: true
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - id
+                  - fightId
+                  - userId
+                  - status
+                  - durationMs
+                  - videoStartUnixMs
+                  - fileSizeBytes
+                  - format
+                  - createdAt
+                properties:
+                  id:
+                    format: uuid
+                    type: string
+                  fightId:
+                    format: uuid
+                    type: string
+                  userId:
+                    anyOf:
+                      - format: uuid
+                        type: string
+                      - type: "null"
+                  status:
+                    anyOf:
+                      - type: string
+                        enum:
+                          - uploading
+                      - type: string
+                        enum:
+                          - processing
+                      - type: string
+                        enum:
+                          - ready
+                      - type: string
+                        enum:
+                          - error
+                  durationMs:
+                    type: number
+                  videoStartUnixMs:
+                    type: number
+                  fileSizeBytes:
+                    anyOf:
+                      - type: number
+                      - type: "null"
+                  format:
+                    type: string
+                  createdAt:
+                    format: date-time
+                    type: string
+        "404":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - error
+                properties:
+                  error:
+                    type: string
+  /api/v1/sessions:
+    get:
+      summary: List raid sessions
+      tags:
+        - sessions
+      parameters:
+        - schema:
+            minimum: 1
+            maximum: 100
+            default: 20
+            type: number
+          in: query
+          name: limit
+          required: false
+        - schema:
+            minimum: 0
+            default: 0
+            type: number
+          in: query
+          name: offset
+          required: false
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - sessions
+                  - total
+                properties:
+                  sessions:
+                    type: array
+                    items:
+                      type: object
+                      required:
+                        - id
+                        - teamId
+                        - instanceName
+                        - date
+                        - wclReportCode
+                        - createdAt
+                      properties:
+                        id:
+                          format: uuid
+                          type: string
+                        teamId:
+                          anyOf:
+                            - format: uuid
+                              type: string
+                            - type: "null"
+                        instanceName:
+                          type: string
+                        date:
+                          type: string
+                        wclReportCode:
+                          anyOf:
+                            - type: string
+                            - type: "null"
+                        createdAt:
+                          format: date-time
+                          type: string
+                  total:
+                    type: number
+    post:
+      summary: Create a new raid session
+      tags:
+        - sessions
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - instanceName
+                - date
+              properties:
+                instanceName:
+                  minLength: 1
+                  maxLength: 128
+                  type: string
+                date:
+                  format: date
+                  type: string
+                wclReportCode:
+                  maxLength: 32
+                  type: string
+      security:
+        - bearerAuth: []
+      responses:
+        "201":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - id
+                  - teamId
+                  - instanceName
+                  - date
+                  - wclReportCode
+                  - fights
+                  - createdAt
+                properties:
+                  id:
+                    format: uuid
+                    type: string
+                  teamId:
+                    anyOf:
+                      - format: uuid
+                        type: string
+                      - type: "null"
+                  instanceName:
+                    type: string
+                  date:
+                    type: string
+                  wclReportCode:
+                    anyOf:
+                      - type: string
+                      - type: "null"
+                  fights:
+                    type: array
+                    items:
+                      type: object
+                      required:
+                        - id
+                        - encounterName
+                        - pullNumber
+                        - kill
+                        - bossPct
+                        - durationMs
+                        - recordingCount
+                      properties:
+                        id:
+                          format: uuid
+                          type: string
+                        encounterName:
+                          type: string
+                        pullNumber:
+                          type: number
+                        kill:
+                          type: boolean
+                        bossPct:
+                          anyOf:
+                            - type: number
+                            - type: "null"
+                        durationMs:
+                          type: number
+                        recordingCount:
+                          type: number
+                  createdAt:
+                    format: date-time
+                    type: string
+        "400":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - error
+                properties:
+                  error:
+                    type: string
+  /api/v1/sessions/{id}:
+    get:
+      summary: Get a session with its fights
+      tags:
+        - sessions
+      parameters:
+        - schema:
+            format: uuid
+            type: string
+          in: path
+          name: id
+          required: true
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - id
+                  - teamId
+                  - instanceName
+                  - date
+                  - wclReportCode
+                  - fights
+                  - createdAt
+                properties:
+                  id:
+                    format: uuid
+                    type: string
+                  teamId:
+                    anyOf:
+                      - format: uuid
+                        type: string
+                      - type: "null"
+                  instanceName:
+                    type: string
+                  date:
+                    type: string
+                  wclReportCode:
+                    anyOf:
+                      - type: string
+                      - type: "null"
+                  fights:
+                    type: array
+                    items:
+                      type: object
+                      required:
+                        - id
+                        - encounterName
+                        - pullNumber
+                        - kill
+                        - bossPct
+                        - durationMs
+                        - recordingCount
+                      properties:
+                        id:
+                          format: uuid
+                          type: string
+                        encounterName:
+                          type: string
+                        pullNumber:
+                          type: number
+                        kill:
+                          type: boolean
+                        bossPct:
+                          anyOf:
+                            - type: number
+                            - type: "null"
+                        durationMs:
+                          type: number
+                        recordingCount:
+                          type: number
+                  createdAt:
+                    format: date-time
+                    type: string
+        "404":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - error
+                properties:
+                  error:
+                    type: string
+    patch:
+      summary: Update a session
+      tags:
+        - sessions
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                instanceName:
+                  minLength: 1
+                  maxLength: 128
+                  type: string
+                date:
+                  format: date
+                  type: string
+                wclReportCode:
+                  maxLength: 32
+                  type: string
+      parameters:
+        - schema:
+            format: uuid
+            type: string
+          in: path
+          name: id
+          required: true
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - id
+                  - teamId
+                  - instanceName
+                  - date
+                  - wclReportCode
+                  - createdAt
+                properties:
+                  id:
+                    format: uuid
+                    type: string
+                  teamId:
+                    anyOf:
+                      - format: uuid
+                        type: string
+                      - type: "null"
+                  instanceName:
+                    type: string
+                  date:
+                    type: string
+                  wclReportCode:
+                    anyOf:
+                      - type: string
+                      - type: "null"
+                  createdAt:
+                    format: date-time
+                    type: string
+        "404":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - error
+                properties:
+                  error:
+                    type: string
+    delete:
+      summary: Delete a session
+      tags:
+        - sessions
+      parameters:
+        - schema:
+            format: uuid
+            type: string
+          in: path
+          name: id
+          required: true
+      security:
+        - bearerAuth: []
+      responses:
+        "204":
+          description: Default Response
+        "404":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - error
+                properties:
+                  error:
+                    type: string
+  /api/v1/fights:
+    post:
+      summary: Create a fight record
+      tags:
+        - fights
+      description: Called by the Electron client after a boss pull ends.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - sessionId
+                - encounterId
+                - encounterName
+                - difficultyId
+                - pullNumber
+                - kill
+                - durationMs
+                - fightStartUnixMs
+                - fightEndUnixMs
+              properties:
+                sessionId:
+                  format: uuid
+                  type: string
+                encounterId:
+                  type: number
+                encounterName:
+                  minLength: 1
+                  maxLength: 128
+                  type: string
+                difficultyId:
+                  type: number
+                pullNumber:
+                  minimum: 1
+                  type: number
+                kill:
+                  type: boolean
+                bossPct:
+                  minimum: 0
+                  maximum: 100
+                  type: number
+                durationMs:
+                  minimum: 0
+                  type: number
+                fightStartUnixMs:
+                  type: number
+                fightEndUnixMs:
+                  type: number
+      security:
+        - bearerAuth: []
+      responses:
+        "201":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - id
+                  - sessionId
+                  - encounterId
+                  - encounterName
+                  - difficultyId
+                  - pullNumber
+                  - kill
+                  - bossPct
+                  - durationMs
+                  - fightStartUnixMs
+                  - fightEndUnixMs
+                  - wclFightId
+                  - recordingCount
+                  - createdAt
+                properties:
+                  id:
+                    format: uuid
+                    type: string
+                  sessionId:
+                    format: uuid
+                    type: string
+                  encounterId:
+                    type: number
+                  encounterName:
+                    type: string
+                  difficultyId:
+                    type: number
+                  pullNumber:
+                    type: number
+                  kill:
+                    type: boolean
+                  bossPct:
+                    anyOf:
+                      - type: number
+                      - type: "null"
+                  durationMs:
+                    type: number
+                  fightStartUnixMs:
+                    type: number
+                  fightEndUnixMs:
+                    type: number
+                  wclFightId:
+                    anyOf:
+                      - type: number
+                      - type: "null"
+                  recordingCount:
+                    type: number
+                  createdAt:
+                    format: date-time
+                    type: string
+        "400":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - error
+                properties:
+                  error:
+                    type: string
+  /api/v1/fights/{id}:
+    get:
+      summary: Get a fight by ID
+      tags:
+        - fights
+      parameters:
+        - schema:
+            format: uuid
+            type: string
+          in: path
+          name: id
+          required: true
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - id
+                  - sessionId
+                  - encounterId
+                  - encounterName
+                  - difficultyId
+                  - pullNumber
+                  - kill
+                  - bossPct
+                  - durationMs
+                  - fightStartUnixMs
+                  - fightEndUnixMs
+                  - wclFightId
+                  - recordingCount
+                  - createdAt
+                properties:
+                  id:
+                    format: uuid
+                    type: string
+                  sessionId:
+                    format: uuid
+                    type: string
+                  encounterId:
+                    type: number
+                  encounterName:
+                    type: string
+                  difficultyId:
+                    type: number
+                  pullNumber:
+                    type: number
+                  kill:
+                    type: boolean
+                  bossPct:
+                    anyOf:
+                      - type: number
+                      - type: "null"
+                  durationMs:
+                    type: number
+                  fightStartUnixMs:
+                    type: number
+                  fightEndUnixMs:
+                    type: number
+                  wclFightId:
+                    anyOf:
+                      - type: number
+                      - type: "null"
+                  recordingCount:
+                    type: number
+                  createdAt:
+                    format: date-time
+                    type: string
+        "404":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - error
+                properties:
+                  error:
+                    type: string
+    delete:
+      summary: Delete a fight
+      tags:
+        - fights
+      parameters:
+        - schema:
+            format: uuid
+            type: string
+          in: path
+          name: id
+          required: true
+      security:
+        - bearerAuth: []
+      responses:
+        "204":
+          description: Default Response
+        "404":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - error
+                properties:
+                  error:
+                    type: string
+tags:
+  - name: system
+    description: Health and discovery
+  - name: auth
+    description: Authentication
+  - name: sessions
+    description: Raid sessions
+  - name: fights
+    description: Individual boss fights
+  - name: recordings
+    description: Video recordings
